@@ -47,15 +47,15 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
 
       // Clear existing player
       if (playerInstanceRef.current) {
-        playerInstanceRef.current.dispose();
+        try {
+          playerInstanceRef.current.dispose();
+        } catch (e) {
+          console.warn('Error disposing previous player:', e);
+        }
       }
       playerRef.current.innerHTML = '';
 
       try {
-        // Create a blob URL for the cast content
-        const blob = new Blob([castContent], { type: 'application/json' });
-        const blobUrl = URL.createObjectURL(blob);
-
         // Parse the first line to get dimensions
         const lines = castContent.trim().split('\n');
         let header = { width: 80, height: 24 };
@@ -68,9 +68,13 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
           }
         }
 
-        // Create player with blob URL
+        // Convert cast content to base64 data URL
+        const base64Content = btoa(unescape(encodeURIComponent(castContent)));
+        const dataUrl = `data:application/x-asciicast;base64,${base64Content}`;
+
+        // Create player with data URL
         playerInstanceRef.current = window.AsciinemaPlayer.create(
-          blobUrl,
+          dataUrl,
           playerRef.current,
           {
             cols: header.width || 80,
@@ -80,36 +84,72 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
             loop: false,
             speed: 1,
             theme: 'asciinema',
-            fit: 'width'
+            fit: 'width',
+            idleTimeLimit: 2
           }
         );
-
-        // Clean up blob URL when component unmounts
-        const currentPlayer = playerInstanceRef.current;
-        if (currentPlayer) {
-          const originalDispose = currentPlayer.dispose;
-          currentPlayer.dispose = function() {
-            URL.revokeObjectURL(blobUrl);
-            if (originalDispose) {
-              originalDispose.call(this);
-            }
-          };
-        }
 
       } catch (error) {
         console.error('Error creating cast player:', error);
 
-        // Show error message in the player area
-        if (playerRef.current) {
-          playerRef.current.innerHTML = `
-            <div class="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
-              <div class="text-center text-gray-600">
-                <div class="text-lg font-semibold mb-2">Error loading cast file</div>
-                <div class="text-sm">${error instanceof Error ? error.message : 'Invalid cast file format'}</div>
-                <div class="text-xs mt-2 text-gray-500">Please ensure the file is a valid asciinema recording</div>
+        // Try alternative approach - directly with the parsed data
+        try {
+          const lines = castContent.trim().split('\n');
+          if (lines.length > 0) {
+            const header = JSON.parse(lines[0]);
+            const events = [];
+
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                events.push(JSON.parse(lines[i]));
+              }
+            }
+
+            const castData = {
+              version: header.version || 2,
+              width: header.width || 80,
+              height: header.height || 24,
+              timestamp: header.timestamp,
+              env: header.env || {},
+              events: events
+            };
+
+            // Create a new div for the player
+            const playerDiv = document.createElement('div');
+            playerRef.current.appendChild(playerDiv);
+
+            // Try to create player with parsed data
+            playerInstanceRef.current = window.AsciinemaPlayer.create(
+              castData,
+              playerDiv,
+              {
+                cols: castData.width,
+                rows: castData.height,
+                autoPlay: false,
+                preload: true,
+                loop: false,
+                speed: 1,
+                theme: 'asciinema',
+                fit: 'width',
+                idleTimeLimit: 2
+              }
+            );
+          }
+        } catch (fallbackError) {
+          console.error('Fallback approach also failed:', fallbackError);
+
+          // Show error message in the player area
+          if (playerRef.current) {
+            playerRef.current.innerHTML = `
+              <div class="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
+                <div class="text-center text-gray-600">
+                  <div class="text-lg font-semibold mb-2">Error loading cast file</div>
+                  <div class="text-sm">${error instanceof Error ? error.message : 'Invalid cast file format'}</div>
+                  <div class="text-xs mt-2 text-gray-500">Please ensure the file is a valid asciinema recording</div>
+                </div>
               </div>
-            </div>
-          `;
+            `;
+          }
         }
       }
     };
