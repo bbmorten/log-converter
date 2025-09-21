@@ -4,22 +4,22 @@ This document contains all the commands and actions taken to build the Next.js a
 
 ## Project Initialization
 
-### 1. Save existing CLAUDE.md temporarily
-```bash
-mv CLAUDE.md /tmp/CLAUDE_TEMP.md
-```
+### 1. Save existing CLAUDE.md temporarily (optional)
 
 ### 2. Initialize Next.js project
+
 ```bash
 npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias "@/*" --use-npm --eslint
 ```
 
 ### 3. Restore CLAUDE.md
+
 ```bash
 mv /tmp/CLAUDE_TEMP.md ./CLAUDE.md
 ```
 
 ### 4. Install asciinema-player package
+
 ```bash
 npm install asciinema-player
 ```
@@ -27,11 +27,13 @@ npm install asciinema-player
 ## Directory Structure Creation
 
 ### 5. Create logging directory and sample log files
+
 ```bash
 mkdir -p logging
 ```
 
 #### Create app.log
+
 ```
 2024-01-15 10:23:45 INFO Application started successfully
 2024-01-15 10:23:46 DEBUG Loading configuration from /config/app.yml
@@ -46,6 +48,7 @@ mkdir -p logging
 ```
 
 #### Create system.log
+
 ```
 2024-01-15 09:00:00 INFO System boot sequence initiated
 2024-01-15 09:00:15 INFO Network interfaces configured
@@ -60,6 +63,7 @@ mkdir -p logging
 ```
 
 #### Create access.log
+
 ```
 192.168.1.100 - - [15/Jan/2024:10:00:00] "GET /api/users HTTP/1.1" 200 1234
 192.168.1.101 - - [15/Jan/2024:10:00:05] "POST /api/login HTTP/1.1" 201 567
@@ -74,6 +78,7 @@ mkdir -p logging
 ```
 
 #### Create demo.cast (Sample asciinema recording)
+
 ```
 {"version": 2, "width": 80, "height": 24, "timestamp": 1705315200, "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"}}
 [0.000000, "o", "\u001b[?1034h$ "]
@@ -146,6 +151,7 @@ mkdir -p logging
 ```
 
 ### 6. Create API directory structure
+
 ```bash
 mkdir -p app/api/files
 mkdir -p app/api/logs
@@ -156,27 +162,31 @@ mkdir -p app/components
 ## API Development
 
 ### 7. Create Files API (app/api/files/route.ts)
+
 This API lists all files in the logging directory with metadata:
 
 ```typescript
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 
 export async function GET() {
   try {
-    const loggingDir = path.join(process.cwd(), 'logging');
+    const loggingDir = path.join(process.cwd(), "logging");
 
     // Check if logging directory exists
     if (!fs.existsSync(loggingDir)) {
-      return NextResponse.json({ files: [], message: 'No logging directory found' });
+      return NextResponse.json({
+        files: [],
+        message: "No logging directory found",
+      });
     }
 
     // Read all files in the logging directory
     const allFiles = fs.readdirSync(loggingDir);
 
     // Get file details
-    const files = allFiles.map(fileName => {
+    const files = allFiles.map((fileName) => {
       const filePath = path.join(loggingDir, fileName);
       const stats = fs.statSync(filePath);
       const extension = path.extname(fileName).toLowerCase();
@@ -185,21 +195,26 @@ export async function GET() {
         name: fileName,
         size: stats.size,
         modified: stats.mtime.toISOString(),
-        type: extension === '.log' ? 'log' :
-              extension === '.cast' ? 'cast' :
-              'other',
-        extension: extension
+        type:
+          extension === ".log"
+            ? "log"
+            : extension === ".cast"
+            ? "cast"
+            : "other",
+        extension: extension,
       };
     });
 
     // Sort by modified date (newest first)
-    files.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+    files.sort(
+      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime()
+    );
 
     return NextResponse.json({ files, count: files.length });
   } catch (error) {
-    console.error('Error reading directory:', error);
+    console.error("Error reading directory:", error);
     return NextResponse.json(
-      { error: 'Failed to read directory' },
+      { error: "Failed to read directory" },
       { status: 500 }
     );
   }
@@ -207,12 +222,13 @@ export async function GET() {
 ```
 
 ### 8. Update Logs API (app/api/logs/route.ts)
+
 Modified to accept POST requests with selected files:
 
 ```typescript
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 
 interface LogEntry {
   id: string;
@@ -223,11 +239,16 @@ interface LogEntry {
   raw: string;
 }
 
-function parseLogLine(line: string, fileName: string, lineIndex: number): LogEntry | null {
+function parseLogLine(
+  line: string,
+  fileName: string,
+  lineIndex: number
+): LogEntry | null {
   if (!line.trim()) return null;
 
   // Try to parse standard log format: timestamp level message
-  const standardLogPattern = /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.*)$/;
+  const standardLogPattern =
+    /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.*)$/;
   const match = line.match(standardLogPattern);
 
   if (match) {
@@ -237,12 +258,13 @@ function parseLogLine(line: string, fileName: string, lineIndex: number): LogEnt
       timestamp: match[1],
       level: match[2],
       message: match[3],
-      raw: line
+      raw: line,
     };
   }
 
   // Try to parse access log format
-  const accessLogPattern = /^([\d.]+)\s+-\s+-\s+\[(.*?)\]\s+"(.*?)"\s+(\d+)\s+(\d+)$/;
+  const accessLogPattern =
+    /^([\d.]+)\s+-\s+-\s+\[(.*?)\]\s+"(.*?)"\s+(\d+)\s+(\d+)$/;
   const accessMatch = line.match(accessLogPattern);
 
   if (accessMatch) {
@@ -250,9 +272,9 @@ function parseLogLine(line: string, fileName: string, lineIndex: number): LogEnt
       id: `${fileName}-${lineIndex}`,
       fileName,
       timestamp: accessMatch[2],
-      level: 'ACCESS',
+      level: "ACCESS",
       message: `${accessMatch[1]} - ${accessMatch[3]} - Status: ${accessMatch[4]} - Size: ${accessMatch[5]}`,
-      raw: line
+      raw: line,
     };
   }
 
@@ -261,31 +283,34 @@ function parseLogLine(line: string, fileName: string, lineIndex: number): LogEnt
     id: `${fileName}-${lineIndex}`,
     fileName,
     timestamp: new Date().toISOString(),
-    level: 'UNKNOWN',
+    level: "UNKNOWN",
     message: line,
-    raw: line
+    raw: line,
   };
 }
 
 export async function POST(request: Request) {
   try {
     const { files } = await request.json();
-    const loggingDir = path.join(process.cwd(), 'logging');
+    const loggingDir = path.join(process.cwd(), "logging");
 
     // Check if logging directory exists
     if (!fs.existsSync(loggingDir)) {
-      return NextResponse.json({ logs: [], message: 'No logging directory found' });
+      return NextResponse.json({
+        logs: [],
+        message: "No logging directory found",
+      });
     }
 
     // If no files specified, return empty
     if (!files || files.length === 0) {
-      return NextResponse.json({ logs: [], message: 'No files selected' });
+      return NextResponse.json({ logs: [], message: "No files selected" });
     }
 
     const allLogs: LogEntry[] = [];
 
     // Process only the selected log files
-    const logFiles = files.filter((file: string) => file.endsWith('.log'));
+    const logFiles = files.filter((file: string) => file.endsWith(".log"));
 
     for (const file of logFiles) {
       const filePath = path.join(loggingDir, file);
@@ -295,8 +320,8 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const lines = content.split('\n');
+      const content = fs.readFileSync(filePath, "utf-8");
+      const lines = content.split("\n");
 
       lines.forEach((line, index) => {
         const logEntry = parseLogLine(line, file, index);
@@ -315,9 +340,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ logs: allLogs, count: allLogs.length });
   } catch (error) {
-    console.error('Error reading log files:', error);
+    console.error("Error reading log files:", error);
     return NextResponse.json(
-      { error: 'Failed to read log files' },
+      { error: "Failed to read log files" },
       { status: 500 }
     );
   }
@@ -325,32 +350,36 @@ export async function POST(request: Request) {
 ```
 
 ### 9. Create Cast API (app/api/cast/route.ts)
+
 This API handles asciinema cast files:
 
 ```typescript
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 
 export async function POST(request: Request) {
   try {
     const { files } = await request.json();
-    const loggingDir = path.join(process.cwd(), 'logging');
+    const loggingDir = path.join(process.cwd(), "logging");
 
     // Check if logging directory exists
     if (!fs.existsSync(loggingDir)) {
-      return NextResponse.json({ casts: [], message: 'No logging directory found' });
+      return NextResponse.json({
+        casts: [],
+        message: "No logging directory found",
+      });
     }
 
     // If no files specified, return empty
     if (!files || files.length === 0) {
-      return NextResponse.json({ casts: [], message: 'No files selected' });
+      return NextResponse.json({ casts: [], message: "No files selected" });
     }
 
     const castData = [];
 
     // Process only the selected .cast files
-    const castFiles = files.filter((file: string) => file.endsWith('.cast'));
+    const castFiles = files.filter((file: string) => file.endsWith(".cast"));
 
     for (const file of castFiles) {
       const filePath = path.join(loggingDir, file);
@@ -360,19 +389,19 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = fs.readFileSync(filePath, "utf-8");
 
       castData.push({
         fileName: file,
-        content: content
+        content: content,
       });
     }
 
     return NextResponse.json({ casts: castData, count: castData.length });
   } catch (error) {
-    console.error('Error reading cast files:', error);
+    console.error("Error reading cast files:", error);
     return NextResponse.json(
-      { error: 'Failed to read cast files' },
+      { error: "Failed to read cast files" },
       { status: 500 }
     );
   }
@@ -382,12 +411,13 @@ export async function POST(request: Request) {
 ## Frontend Development
 
 ### 10. Create AsciinemaPlayer Component (app/components/AsciinemaPlayer.tsx)
+
 This component handles asciinema cast file playback:
 
 ```typescript
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 interface AsciinemaPlayerProps {
   castContent: string;
@@ -400,7 +430,10 @@ declare global {
   }
 }
 
-export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlayerProps) {
+export default function AsciinemaPlayer({
+  castContent,
+  fileName,
+}: AsciinemaPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<any>(null);
 
@@ -410,16 +443,18 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
 
       // Import asciinema-player CSS
       if (!document.querySelector('link[href*="asciinema-player.css"]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://cdn.jsdelivr.net/npm/asciinema-player@3.7.1/dist/bundle/asciinema-player.css';
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href =
+          "https://cdn.jsdelivr.net/npm/asciinema-player@3.7.1/dist/bundle/asciinema-player.css";
         document.head.appendChild(link);
       }
 
       // Import asciinema-player JS
       if (!window.AsciinemaPlayer) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/asciinema-player@3.7.1/dist/bundle/asciinema-player.min.js';
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/asciinema-player@3.7.1/dist/bundle/asciinema-player.min.js";
         script.onload = () => {
           createPlayer();
         };
@@ -436,22 +471,22 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
       if (playerInstanceRef.current) {
         playerInstanceRef.current.dispose();
       }
-      playerRef.current.innerHTML = '';
+      playerRef.current.innerHTML = "";
 
       try {
         // Create a blob URL for the cast content
-        const blob = new Blob([castContent], { type: 'application/json' });
+        const blob = new Blob([castContent], { type: "application/json" });
         const blobUrl = URL.createObjectURL(blob);
 
         // Parse the first line to get dimensions
-        const lines = castContent.trim().split('\n');
+        const lines = castContent.trim().split("\n");
         let header = { width: 80, height: 24 };
 
         if (lines.length > 0) {
           try {
             header = JSON.parse(lines[0]);
           } catch (e) {
-            console.warn('Could not parse header, using defaults');
+            console.warn("Could not parse header, using defaults");
           }
         }
 
@@ -466,8 +501,8 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
             preload: true,
             loop: false,
             speed: 1,
-            theme: 'asciinema',
-            fit: 'width'
+            theme: "asciinema",
+            fit: "width",
           }
         );
 
@@ -475,16 +510,15 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
         const currentPlayer = playerInstanceRef.current;
         if (currentPlayer) {
           const originalDispose = currentPlayer.dispose;
-          currentPlayer.dispose = function() {
+          currentPlayer.dispose = function () {
             URL.revokeObjectURL(blobUrl);
             if (originalDispose) {
               originalDispose.call(this);
             }
           };
         }
-
       } catch (error) {
-        console.error('Error creating cast player:', error);
+        console.error("Error creating cast player:", error);
 
         // Show error message in the player area
         if (playerRef.current) {
@@ -492,7 +526,11 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
             <div class="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
               <div class="text-center text-gray-600">
                 <div class="text-lg font-semibold mb-2">Error loading cast file</div>
-                <div class="text-sm">${error instanceof Error ? error.message : 'Invalid cast file format'}</div>
+                <div class="text-sm">${
+                  error instanceof Error
+                    ? error.message
+                    : "Invalid cast file format"
+                }</div>
                 <div class="text-xs mt-2 text-gray-500">Please ensure the file is a valid asciinema recording</div>
               </div>
             </div>
@@ -516,7 +554,7 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
       <div
         ref={playerRef}
         className="w-full rounded-lg overflow-hidden shadow-lg bg-black"
-        style={{ minHeight: '400px' }}
+        style={{ minHeight: "400px" }}
       />
     </div>
   );
@@ -524,15 +562,16 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
 ```
 
 ### 11. Replace Main Page (app/page.tsx)
+
 Complete replacement with file selection and multi-view functionality:
 
 ```typescript
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 
-const AsciinemaPlayer = dynamic(() => import('./components/AsciinemaPlayer'), {
+const AsciinemaPlayer = dynamic(() => import("./components/AsciinemaPlayer"), {
   ssr: false,
 });
 
@@ -549,7 +588,7 @@ interface FileInfo {
   name: string;
   size: number;
   modified: string;
-  type: 'log' | 'cast' | 'other';
+  type: "log" | "cast" | "other";
   extension: string;
 }
 
@@ -565,9 +604,9 @@ export default function Home() {
   const [casts, setCasts] = useState<CastData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'files' | 'logs' | 'casts'>('files');
+  const [selectedLevel, setSelectedLevel] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"files" | "logs" | "casts">("files");
 
   useEffect(() => {
     fetchFiles();
@@ -576,23 +615,23 @@ export default function Home() {
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/files');
+      const response = await fetch("/api/files");
       if (!response.ok) {
-        throw new Error('Failed to fetch files');
+        throw new Error("Failed to fetch files");
       }
       const data = await response.json();
       setFiles(data.files || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleFileSelect = (fileName: string) => {
-    setSelectedFiles(prev =>
+    setSelectedFiles((prev) =>
       prev.includes(fileName)
-        ? prev.filter(f => f !== fileName)
+        ? prev.filter((f) => f !== fileName)
         : [...prev, fileName]
     );
   };
@@ -601,68 +640,74 @@ export default function Home() {
     if (selectedFiles.length === files.length) {
       setSelectedFiles([]);
     } else {
-      setSelectedFiles(files.map(f => f.name));
+      setSelectedFiles(files.map((f) => f.name));
     }
   };
 
   const handleDisplay = async () => {
     if (selectedFiles.length === 0) {
-      setError('Please select at least one file');
+      setError("Please select at least one file");
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const logFiles = selectedFiles.filter(f => f.endsWith('.log'));
-    const castFiles = selectedFiles.filter(f => f.endsWith('.cast'));
+    const logFiles = selectedFiles.filter((f) => f.endsWith(".log"));
+    const castFiles = selectedFiles.filter((f) => f.endsWith(".cast"));
 
     try {
       // Fetch log files if any
       if (logFiles.length > 0) {
-        const logResponse = await fetch('/api/logs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const logResponse = await fetch("/api/logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ files: logFiles }),
         });
 
         if (!logResponse.ok) {
-          throw new Error('Failed to fetch logs');
+          throw new Error("Failed to fetch logs");
         }
 
         const logData = await logResponse.json();
         setLogs(logData.logs || []);
 
         if (logData.logs && logData.logs.length > 0) {
-          setViewMode('logs');
+          setViewMode("logs");
         }
       }
 
       // Fetch cast files if any
       if (castFiles.length > 0) {
-        const castResponse = await fetch('/api/cast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const castResponse = await fetch("/api/cast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ files: castFiles }),
         });
 
         if (!castResponse.ok) {
-          throw new Error('Failed to fetch cast files');
+          throw new Error("Failed to fetch cast files");
         }
 
         const castData = await castResponse.json();
         setCasts(castData.casts || []);
 
-        if (castData.casts && castData.casts.length > 0 && logFiles.length === 0) {
-          setViewMode('casts');
+        if (
+          castData.casts &&
+          castData.casts.length > 0 &&
+          logFiles.length === 0
+        ) {
+          setViewMode("casts");
         }
       }
 
       if (logFiles.length === 0 && castFiles.length === 0) {
-        setError('Selected files are not supported. Please select .log or .cast files.');
+        setError(
+          "Selected files are not supported. Please select .log or .cast files."
+        );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -670,47 +715,48 @@ export default function Home() {
 
   const getLevelColor = (level: string): string => {
     switch (level.toUpperCase()) {
-      case 'ERROR':
-        return 'bg-red-100 text-red-800';
-      case 'WARNING':
-      case 'WARN':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'INFO':
-        return 'bg-blue-100 text-blue-800';
-      case 'DEBUG':
-        return 'bg-gray-100 text-gray-800';
-      case 'ACCESS':
-        return 'bg-green-100 text-green-800';
+      case "ERROR":
+        return "bg-red-100 text-red-800";
+      case "WARNING":
+      case "WARN":
+        return "bg-yellow-100 text-yellow-800";
+      case "INFO":
+        return "bg-blue-100 text-blue-800";
+      case "DEBUG":
+        return "bg-gray-100 text-gray-800";
+      case "ACCESS":
+        return "bg-green-100 text-green-800";
       default:
-        return 'bg-gray-100 text-gray-600';
+        return "bg-gray-100 text-gray-600";
     }
   };
 
   const getFileIcon = (type: string) => {
     switch (type) {
-      case 'log':
-        return '📄';
-      case 'cast':
-        return '🎬';
+      case "log":
+        return "📄";
+      case "cast":
+        return "🎬";
       default:
-        return '📁';
+        return "📁";
     }
   };
 
-  const uniqueLevels = Array.from(new Set(logs.map(log => log.level)));
+  const uniqueLevels = Array.from(new Set(logs.map((log) => log.level)));
 
-  const filteredLogs = logs.filter(log => {
-    const matchesLevel = selectedLevel === 'all' || log.level === selectedLevel;
-    const matchesSearch = searchTerm === '' ||
+  const filteredLogs = logs.filter((log) => {
+    const matchesLevel = selectedLevel === "all" || log.level === selectedLevel;
+    const matchesSearch =
+      searchTerm === "" ||
       log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.fileName.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesLevel && matchesSearch;
   });
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
@@ -718,19 +764,25 @@ export default function Home() {
   return (
     <main className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Log & Cast File Viewer</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          Log & Cast File Viewer
+        </h1>
 
         {/* File Selection View */}
-        {viewMode === 'files' && (
+        {viewMode === "files" && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Select Files to Display</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Select Files to Display
+              </h2>
               <div className="flex gap-2">
                 <button
                   onClick={handleSelectAll}
                   className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  {selectedFiles.length === files.length ? 'Deselect All' : 'Select All'}
+                  {selectedFiles.length === files.length
+                    ? "Deselect All"
+                    : "Select All"}
                 </button>
                 <button
                   onClick={fetchFiles}
@@ -743,8 +795,8 @@ export default function Home() {
                   disabled={selectedFiles.length === 0}
                   className={`px-6 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
                     selectedFiles.length === 0
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-500 hover:bg-blue-600'
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 hover:bg-blue-600"
                   }`}
                 >
                   Display Selected ({selectedFiles.length})
@@ -779,27 +831,30 @@ export default function Home() {
                     onClick={() => handleFileSelect(file.name)}
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                       selectedFiles.includes(file.name)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-2xl">{getFileIcon(file.type)}</span>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800 break-all">{file.name}</h3>
+                        <h3 className="font-semibold text-gray-800 break-all">
+                          {file.name}
+                        </h3>
                         <p className="text-sm text-gray-500 mt-1">
-                          {formatFileSize(file.size)} • {new Date(file.modified).toLocaleString()}
+                          {formatFileSize(file.size)} •{" "}
+                          {new Date(file.modified).toLocaleString()}
                         </p>
                         <span
                           className={`inline-block mt-2 px-2 py-1 text-xs font-semibold rounded ${
-                            file.type === 'log'
-                              ? 'bg-green-100 text-green-800'
-                              : file.type === 'cast'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-gray-100 text-gray-600'
+                            file.type === "log"
+                              ? "bg-green-100 text-green-800"
+                              : file.type === "cast"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          {file.extension || 'unknown'}
+                          {file.extension || "unknown"}
                         </span>
                       </div>
                       <input
@@ -817,21 +872,21 @@ export default function Home() {
         )}
 
         {/* Navigation for logs/casts view */}
-        {viewMode !== 'files' && (
+        {viewMode !== "files" && (
           <div className="mb-6 flex gap-2">
             <button
-              onClick={() => setViewMode('files')}
+              onClick={() => setViewMode("files")}
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               ← Back to File Selection
             </button>
             {logs.length > 0 && (
               <button
-                onClick={() => setViewMode('logs')}
+                onClick={() => setViewMode("logs")}
                 className={`px-4 py-2 rounded-lg transition-colors ${
-                  viewMode === 'logs'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  viewMode === "logs"
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 View Logs ({logs.length})
@@ -839,11 +894,11 @@ export default function Home() {
             )}
             {casts.length > 0 && (
               <button
-                onClick={() => setViewMode('casts')}
+                onClick={() => setViewMode("casts")}
                 className={`px-4 py-2 rounded-lg transition-colors ${
-                  viewMode === 'casts'
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  viewMode === "casts"
+                    ? "bg-purple-500 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 View Casts ({casts.length})
@@ -853,11 +908,14 @@ export default function Home() {
         )}
 
         {/* Logs View */}
-        {viewMode === 'logs' && logs.length > 0 && (
+        {viewMode === "logs" && logs.length > 0 && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               <div className="flex-1">
-                <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="search"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Search Logs
                 </label>
                 <input
@@ -870,7 +928,10 @@ export default function Home() {
                 />
               </div>
               <div className="md:w-48">
-                <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="level"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Filter by Level
                 </label>
                 <select
@@ -880,8 +941,10 @@ export default function Home() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">All Levels</option>
-                  {uniqueLevels.map(level => (
-                    <option key={level} value={level}>{level}</option>
+                  {uniqueLevels.map((level) => (
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -916,7 +979,11 @@ export default function Home() {
                         {log.timestamp}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getLevelColor(log.level)}`}>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getLevelColor(
+                            log.level
+                          )}`}
+                        >
                           {log.level}
                         </span>
                       </td>
@@ -937,7 +1004,7 @@ export default function Home() {
         )}
 
         {/* Cast View */}
-        {viewMode === 'casts' && casts.length > 0 && (
+        {viewMode === "casts" && casts.length > 0 && (
           <div className="space-y-6">
             {casts.map((cast, index) => (
               <div key={index} className="bg-white rounded-lg shadow-md p-6">
@@ -958,11 +1025,13 @@ export default function Home() {
 ## Testing and Debugging
 
 ### 12. Start development server
+
 ```bash
 npm run dev
 ```
 
 ### 13. Test API endpoints
+
 ```bash
 # Test files API
 curl http://localhost:3000/api/files | python3 -m json.tool
@@ -980,13 +1049,14 @@ curl -s http://localhost:3000 | grep -o "Log & Cast File Viewer"
 ## Bug Fixes
 
 ### 14. Fixed AsciinemaPlayer JSON parsing error
+
 **Problem**: AsciinemaPlayer was failing with JSON parse errors when trying to parse cast content.
 
 **Solution**: Modified the AsciinemaPlayer component to use blob URLs instead of direct content parsing:
 
 ```typescript
 // Create a blob URL for the cast content
-const blob = new Blob([castContent], { type: 'application/json' });
+const blob = new Blob([castContent], { type: "application/json" });
 const blobUrl = URL.createObjectURL(blob);
 
 // Create player with blob URL
@@ -1000,8 +1070,8 @@ playerInstanceRef.current = window.AsciinemaPlayer.create(
     preload: true,
     loop: false,
     speed: 1,
-    theme: 'asciinema',
-    fit: 'width'
+    theme: "asciinema",
+    fit: "width",
   }
 );
 
@@ -1009,7 +1079,7 @@ playerInstanceRef.current = window.AsciinemaPlayer.create(
 const currentPlayer = playerInstanceRef.current;
 if (currentPlayer) {
   const originalDispose = currentPlayer.dispose;
-  currentPlayer.dispose = function() {
+  currentPlayer.dispose = function () {
     URL.revokeObjectURL(blobUrl);
     if (originalDispose) {
       originalDispose.call(this);
@@ -1021,6 +1091,7 @@ if (currentPlayer) {
 ## Documentation Update
 
 ### 15. Update CLAUDE.md with enhanced features
+
 Updated the documentation to reflect the new file selection interface, asciinema support, and enhanced API endpoints.
 
 ## Final Project Structure
@@ -1064,6 +1135,7 @@ This project was built incrementally with the following major phases:
 7. **Documentation**: Updated CLAUDE.md and created this build log
 
 The final application supports:
+
 - File selection interface with visual file type indicators
 - Log file parsing and table display with search/filter
 - Asciinema cast file playback with full controls
