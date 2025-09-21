@@ -1,0 +1,10 @@
+2024-01-15 09:00:00 INFO System boot sequence initiated
+2024-01-15 09:00:15 INFO Network interfaces configured
+2024-01-15 09:00:20 DEBUG Loading kernel modules
+2024-01-15 09:00:25 INFO All services started successfully
+2024-01-15 09:05:10 WARNING Disk space low on /dev/sda1: 15% remaining
+2024-01-15 09:10:00 INFO Automatic updates check completed
+2024-01-15 09:15:30 ERROR Failed to sync with NTP server
+2024-01-15 09:15:35 INFO Falling back to local time
+2024-01-15 09:20:00 INFO Security scan completed: No threats detected
+2024-01-15 09:30:00 DEBUG Memory usage: 4.2GB / 16GB
