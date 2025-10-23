@@ -1,19 +1,50 @@
 # Log Converter - Quick Start Guide
 
-## TL;DR - Get Started in 3 Steps
+## TL;DR - Get Started in 2 Steps
 
 ```bash
-# 1. Copy your log files to the pod
+# 1. Deploy (or update) the application
+./deploy.sh
+
+# 2. Copy your log files and access
 ./copy-to-pod.sh
+# Application access instructions shown in deploy output
+```
 
-# 2. Access the application
-kubectl port-forward -n log-converter svc/log-converter 3000:3000
+## First Time Setup
 
-# 3. Open in browser
-open http://localhost:3000
+```bash
+# Deploy to cilium-labs cluster
+./deploy.sh
+
+# The script will:
+# - Build Docker image with version tag
+# - Load image to KinD cluster
+# - Deploy/update Kubernetes resources
+# - Run health checks
+# - Show access instructions
 ```
 
 ## Common Commands
+
+### Deploy or Update Application
+
+```bash
+# Deploy latest code
+./deploy.sh
+
+# Deploy with custom version
+./deploy.sh --version v1.2.3
+
+# Quick update (skip build if image exists)
+./deploy.sh --skip-build --version existing-version
+
+# Test deployment without applying
+./deploy.sh --dry-run
+
+# Rollback to previous version
+./deploy.sh --rollback
+```
 
 ### Copy Files to Pod
 

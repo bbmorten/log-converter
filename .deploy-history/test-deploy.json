@@ -1,0 +1,7 @@
+{
+  "version": "test-deploy",
+  "timestamp": "2025-10-23T14:14:34Z",
+  "image": "log-converter:test-deploy",
+  "cluster": "cilium-labs",
+  "namespace": "log-converter"
+}
