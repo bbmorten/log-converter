@@ -1,0 +1,7 @@
+{
+  "version": "661b327",
+  "timestamp": "2025-10-23T14:18:57Z",
+  "image": "log-converter:661b327",
+  "cluster": "cilium-labs",
+  "namespace": "log-converter"
+}
