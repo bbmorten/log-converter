@@ -1,0 +1,7 @@
+{
+  "version": "e235473",
+  "timestamp": "2025-10-23T14:36:45Z",
+  "image": "log-converter:e235473",
+  "cluster": "cilium-labs",
+  "namespace": "log-converter"
+}
