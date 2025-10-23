@@ -4,6 +4,11 @@
 
 A Next.js application that reads log files and asciinema cast files from a `logging` directory, converts them to structured formats, and displays them in an interactive interface with file selection, filtering, and search capabilities.
 
+**Deployment Options:**
+- 🖥️ **Local Development**: Run directly with Node.js for development and testing
+- 🐳 **Docker**: Containerized deployment with multi-stage optimized build
+- ☸️ **Kubernetes**: Production-ready deployment with persistent storage, health checks, and helper scripts
+
 ## Features
 
 - **File Selection Interface**: Browse and select multiple files from the logging directory
@@ -53,6 +58,13 @@ log-converter/
 │   ├── page.tsx                  # Main page with log viewer table
 │   ├── layout.tsx                # Root layout
 │   └── globals.css               # Global styles
+├── k8s/                          # Kubernetes deployment manifests
+│   ├── namespace.yaml            # Namespace configuration
+│   ├── pvc.yaml                  # PersistentVolumeClaim for storage
+│   ├── init-job.yaml             # Job to initialize sample log files
+│   ├── deployment.yaml           # Application deployment
+│   ├── service.yaml              # NodePort service
+│   └── README.md                 # Kubernetes deployment guide
 ├── logging/                      # Directory containing log and cast files
 │   ├── app.log                   # Sample application log
 │   ├── system.log                # Sample system log
@@ -61,8 +73,14 @@ log-converter/
 │   ├── demo.cast                 # Sample asciinema recording
 │   └── cilium-installation-v1.cast  # Cilium installation recording
 ├── public/                       # Static assets
+├── Dockerfile                    # Multi-stage Docker build configuration
+├── .dockerignore                 # Docker build exclusions
+├── copy-to-pod.sh                # Helper script to copy files to Kubernetes pod
 ├── package.json                  # Dependencies
+├── tsconfig.json                 # TypeScript configuration (ES2018 target)
 ├── CLAUDE.md                     # This documentation file
+├── DEPLOYMENT.md                 # Kubernetes deployment and operations guide
+├── QUICK-START.md                # Quick reference guide
 └── README.md                     # Standard Next.js README
 ```
 
@@ -70,10 +88,18 @@ log-converter/
 
 ### Prerequisites
 
+**For Local Development:**
 - Node.js 18+ and npm installed
 - Log files placed in the `logging/` directory
 
+**For Kubernetes Deployment:**
+- Kubernetes cluster (e.g., KinD, minikube, or production cluster)
+- kubectl configured and connected to your cluster
+- Docker installed for building images
+
 ### Installation & Running
+
+#### Local Development
 
 ```bash
 # Install dependencies
@@ -82,7 +108,7 @@ npm install
 # Run development server (with Turbopack)
 npm run dev
 
-# Build for production (with Turbopack)
+# Build for production
 npm run build
 
 # Start production server
@@ -93,6 +119,36 @@ npm run lint
 ```
 
 The application will be available at `http://localhost:3000`
+
+#### Kubernetes Deployment
+
+**Quick Start:**
+
+```bash
+# 1. Build and load Docker image
+docker build -t log-converter:latest .
+kind load docker-image log-converter:latest --name cilium-labs
+
+# 2. Deploy to Kubernetes
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/pvc.yaml
+kubectl apply -f k8s/init-job.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+# 3. Wait for deployment to be ready
+kubectl wait --for=condition=Ready pod -l app=log-converter -n log-converter --timeout=120s
+
+# 4. Copy your log files to the pod
+./copy-to-pod.sh ./logging/
+
+# 5. Access the application
+kubectl port-forward -n log-converter svc/log-converter 3000:3000
+```
+
+Then open `http://localhost:3000` in your browser.
+
+**For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md) or [QUICK-START.md](QUICK-START.md)**
 
 ## How It Works
 
@@ -157,11 +213,47 @@ The application will be available at `http://localhost:3000`
 
 ### 8. Adding New Files
 
+#### Local Development
+
 Simply place any `.log` or `.cast` file in the `logging/` directory:
 
 - **Log files** (.log): Will be parsed and displayed in the table
 - **Cast files** (.cast): Will be rendered as playable terminal recordings or converted to markdown
 - Files appear immediately in the file selection interface
+
+#### Kubernetes Deployment
+
+Use the provided helper script to copy files to the pod:
+
+```bash
+# Copy entire logging directory
+./copy-to-pod.sh
+
+# Copy specific file
+./copy-to-pod.sh ./logging/yourfile.log
+
+# Copy specific cast file
+./copy-to-pod.sh ./logging/recording.cast
+```
+
+The script will:
+- Automatically locate the running pod
+- Copy the files to the persistent storage
+- Verify the copy was successful
+- Show the files in the pod
+- Test the API endpoint
+
+**Manual copy:**
+
+```bash
+# Get pod name
+POD_NAME=$(kubectl get pod -n log-converter -l app=log-converter -o jsonpath='{.items[0].metadata.name}')
+
+# Copy file
+kubectl cp ./logging/yourfile.log log-converter/$POD_NAME:/app/logging/ -n log-converter
+```
+
+**Files persist across pod restarts** thanks to the PersistentVolumeClaim.
 
 ## Log Level Color Coding
 
@@ -297,9 +389,68 @@ The asciinema player implementation includes several key technical decisions:
 
 ### Build Configuration
 
-- **Turbopack**: Enabled for both dev and production builds for faster compilation
+- **Turbopack**: Enabled for dev builds, standard build for production (Docker compatibility)
 - **ESLint**: Configured with Next.js recommended settings
-- **TypeScript**: Strict type checking enabled
+- **TypeScript**: Strict type checking enabled, ES2018 target for regex compatibility
+- **Standalone Output**: Optimized for Docker deployment with minimal dependencies
+
+### Docker & Kubernetes
+
+The application includes production-ready containerization and orchestration:
+
+#### Docker Configuration
+
+**Multi-stage build** ([Dockerfile](Dockerfile)):
+- **Stage 1 (deps)**: Install dependencies with npm ci
+- **Stage 2 (builder)**: Build the Next.js application with standalone output
+- **Stage 3 (runner)**: Minimal runtime image with only necessary files
+- **Base Image**: node:20-alpine for small footprint
+- **Security**: Runs as non-root user (nextjs:1001)
+- **Size**: Optimized with .dockerignore and standalone output
+
+**Build command:**
+```bash
+docker build -t log-converter:latest .
+```
+
+#### Kubernetes Deployment
+
+**Architecture:**
+- **Namespace**: Isolated `log-converter` namespace
+- **Deployment**: Single replica with resource limits (256Mi-512Mi memory)
+- **Service**: NodePort (30300) for external access
+- **Storage**: 5Gi PersistentVolumeClaim with local-path provisioner
+- **Init Job**: Automatically creates sample log files on first deployment
+- **Health Checks**: Liveness and readiness probes for reliability
+
+**Features:**
+- ✅ Persistent storage for log files (survives pod restarts)
+- ✅ Automatic initialization with sample data
+- ✅ Resource limits for cluster stability
+- ✅ Health monitoring with HTTP probes
+- ✅ Compatible with KinD, minikube, and production clusters
+
+**Helper Script** ([copy-to-pod.sh](copy-to-pod.sh)):
+- Automated file copying to running pods
+- Validates pod status before copying
+- Verifies successful transfer
+- Tests API endpoints
+- Color-coded output for clarity
+
+**Quick deployment:**
+```bash
+docker build -t log-converter:latest .
+kind load docker-image log-converter:latest --name cilium-labs
+kubectl apply -f k8s/
+kubectl wait --for=condition=Ready pod -l app=log-converter -n log-converter
+./copy-to-pod.sh ./logging/
+kubectl port-forward -n log-converter svc/log-converter 3000:3000
+```
+
+**Documentation:**
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Complete deployment and operations guide
+- [QUICK-START.md](QUICK-START.md) - Quick reference for common tasks
+- [k8s/README.md](k8s/README.md) - Kubernetes manifest documentation
 
 ## Customization
 
@@ -372,28 +523,30 @@ Adjust player options in [app/components/AsciinemaPlayer.tsx](app/components/Asc
 
 ## Troubleshooting
 
-### No logs appearing
+### Local Development
+
+#### No logs appearing
 
 - Ensure `.log` files exist in the `logging/` directory
 - Check file permissions (must be readable by Node.js process)
 - Verify log file format matches supported patterns
 - Check browser console for API errors
 
-### Parsing issues
+#### Parsing issues
 
 - Check log format against supported patterns in [app/api/logs/route.ts](app/api/logs/route.ts)
 - Review browser console for API errors
 - Ensure timestamps are in expected format (YYYY-MM-DD HH:MM:SS)
 - Verify file encoding is UTF-8
 
-### Cast file playback issues
+#### Cast file playback issues
 
 - Ensure cast files are valid asciinema v2 format
 - Check browser console for player errors
 - Verify file is not corrupted (should be newline-delimited JSON)
 - Try opening cast file in text editor to verify format
 
-### Performance issues
+#### Performance issues
 
 - Reduce log file size or split into multiple files
 - Use browser with better performance (Chrome recommended)
@@ -401,12 +554,56 @@ Adjust player options in [app/components/AsciinemaPlayer.tsx](app/components/Asc
 - Consider implementing pagination (not yet implemented)
 - Use server-side filtering for large datasets
 
-### Build errors
+#### Build errors
 
 - Ensure Node.js 18+ is installed: `node --version`
 - Clear `.next` directory: `rm -rf .next`
 - Reinstall dependencies: `rm -rf node_modules && npm install`
 - Check for TypeScript errors: `npx tsc --noEmit`
+
+### Kubernetes Deployment
+
+#### Pod not starting
+
+```bash
+# Check pod status
+kubectl get pods -n log-converter
+kubectl describe pod -n log-converter -l app=log-converter
+kubectl logs -n log-converter deployment/log-converter
+```
+
+#### Files not appearing in UI
+
+```bash
+# Verify files are in the pod
+kubectl exec -n log-converter deployment/log-converter -- ls -lah /app/logging
+
+# Test API endpoint
+kubectl exec -n log-converter deployment/log-converter -- wget -O- http://localhost:3000/api/files
+```
+
+#### Cannot copy files to pod
+
+```bash
+# Use the helper script
+./copy-to-pod.sh ./logging/yourfile.log
+
+# Or check pod status
+kubectl get pod -n log-converter -l app=log-converter
+```
+
+#### Application not accessible
+
+```bash
+# Ensure port-forward is running
+kubectl port-forward -n log-converter svc/log-converter 3000:3000
+
+# Or check service
+kubectl get svc -n log-converter
+kubectl get endpoints -n log-converter
+```
+
+**For detailed Kubernetes troubleshooting, see [DEPLOYMENT.md](DEPLOYMENT.md#troubleshooting)**
 
 ## Contributing
 

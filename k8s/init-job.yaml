@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: log-converter-init
+  namespace: log-converter
+spec:
+  template:
+    metadata:
+      labels:
+        app: log-converter-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: init-logging-data
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Initializing logging directory..."
+          mkdir -p /data/logging
+
+          # Create sample log files
+          cat > /data/logging/app.log << 'EOF'
+          2024-01-15 10:23:45 INFO Application started successfully
+          2024-01-15 10:23:46 INFO Database connection established
+          2024-01-15 10:24:12 WARNING High memory usage detected: 85%
+          2024-01-15 10:25:03 ERROR Failed to process request: timeout
+          2024-01-15 10:25:04 INFO Request retry successful
+          2024-01-15 10:30:22 DEBUG Processing batch job #1234
+          2024-01-15 10:35:45 INFO Batch job completed successfully
+          EOF
+
+          cat > /data/logging/system.log << 'EOF'
+          2024-01-15 09:00:00 INFO System startup initiated
+          2024-01-15 09:00:05 INFO Loading configuration from /etc/config
+          2024-01-15 09:00:10 INFO Network interfaces initialized
+          2024-01-15 09:00:15 INFO Service dependencies resolved
+          2024-01-15 09:00:20 WARNING Deprecated configuration option detected
+          2024-01-15 09:00:25 INFO All systems operational
+          EOF
+
+          cat > /data/logging/access.log << 'EOF'
+          192.168.1.100 - - [15/Jan/2024:10:23:45 +0000] "GET /api/users HTTP/1.1" 200 1234
+          192.168.1.101 - - [15/Jan/2024:10:24:12 +0000] "POST /api/login HTTP/1.1" 200 567
+          192.168.1.102 - - [15/Jan/2024:10:25:03 +0000] "GET /api/data HTTP/1.1" 500 89
+          192.168.1.103 - - [15/Jan/2024:10:26:30 +0000] "PUT /api/users/123 HTTP/1.1" 200 432
+          EOF
+
+          echo "Sample log files created successfully"
+          ls -lah /data/logging/
+        volumeMounts:
+        - name: logging-storage
+          mountPath: /data/logging
+      volumes:
+      - name: logging-storage
+        persistentVolumeClaim:
+          claimName: log-converter-storage

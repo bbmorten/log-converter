@@ -7,15 +7,21 @@ interface AsciinemaPlayerProps {
   fileName: string;
 }
 
+interface AsciinemaPlayerType {
+  create: (data: string | object, element: HTMLElement, options: object) => {
+    dispose: () => void;
+  };
+}
+
 declare global {
   interface Window {
-    AsciinemaPlayer: any;
+    AsciinemaPlayer: AsciinemaPlayerType;
   }
 }
 
 export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
-  const playerInstanceRef = useRef<any>(null);
+  const playerInstanceRef = useRef<{ dispose: () => void } | null>(null);
 
   useEffect(() => {
     const loadAsciinemaPlayer = async () => {
@@ -63,7 +69,7 @@ export default function AsciinemaPlayer({ castContent, fileName }: AsciinemaPlay
         if (lines.length > 0) {
           try {
             header = JSON.parse(lines[0]);
-          } catch (e) {
+          } catch {
             console.warn('Could not parse header, using defaults');
           }
         }

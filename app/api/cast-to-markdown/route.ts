@@ -110,7 +110,7 @@ function stripAnsiCodes(text: string): string {
   const lines = clean.split('\n');
 
   // First pass: handle lines that were overwritten multiple times (CR without LF)
-  const collapsed = [];
+  const collapsed: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
 
@@ -342,7 +342,7 @@ function convertCastToMarkdown(castContent: string, fileName: string): string {
     let header: CastHeader;
     try {
       header = JSON.parse(lines[0]);
-    } catch (e) {
+    } catch {
       return '```\nInvalid cast file format: Could not parse header\n```';
     }
 
@@ -357,7 +357,7 @@ function convertCastToMarkdown(castContent: string, fileName: string): string {
             type: event[1],
             data: event[2]
           });
-        } catch (e) {
+        } catch {
           console.warn(`Skipping invalid event on line ${i + 1}`);
         }
       }
