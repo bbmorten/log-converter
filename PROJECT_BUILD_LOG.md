@@ -34,7 +34,7 @@ mkdir -p logging
 
 #### Create app.log
 
-```
+```shell
 2024-01-15 10:23:45 INFO Application started successfully
 2024-01-15 10:23:46 DEBUG Loading configuration from /config/app.yml
 2024-01-15 10:23:47 INFO Database connection established
@@ -49,7 +49,7 @@ mkdir -p logging
 
 #### Create system.log
 
-```
+```shell
 2024-01-15 09:00:00 INFO System boot sequence initiated
 2024-01-15 09:00:15 INFO Network interfaces configured
 2024-01-15 09:00:20 DEBUG Loading kernel modules
@@ -64,7 +64,7 @@ mkdir -p logging
 
 #### Create access.log
 
-```
+```shell
 192.168.1.100 - - [15/Jan/2024:10:00:00] "GET /api/users HTTP/1.1" 200 1234
 192.168.1.101 - - [15/Jan/2024:10:00:05] "POST /api/login HTTP/1.1" 201 567
 192.168.1.102 - - [15/Jan/2024:10:00:10] "GET /api/products HTTP/1.1" 200 5678
@@ -79,7 +79,7 @@ mkdir -p logging
 
 #### Create demo.cast (Sample asciinema recording)
 
-```
+```shell
 {"version": 2, "width": 80, "height": 24, "timestamp": 1705315200, "env": {"SHELL": "/bin/bash", "TERM": "xterm-256color"}}
 [0.000000, "o", "\u001b[?1034h$ "]
 [1.000000, "o", "e"]
@@ -1096,7 +1096,7 @@ Updated the documentation to reflect the new file selection interface, asciinema
 
 ## Final Project Structure
 
-```
+```shell
 log-converter/
 ├── app/
 │   ├── api/
