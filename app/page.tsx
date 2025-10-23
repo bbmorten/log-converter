@@ -7,6 +7,10 @@ const AsciinemaPlayer = dynamic(() => import('./components/AsciinemaPlayer'), {
   ssr: false,
 });
 
+const MarkdownViewer = dynamic(() => import('./components/MarkdownViewer'), {
+  ssr: false,
+});
+
 interface LogEntry {
   id: string;
   fileName: string;
@@ -29,16 +33,22 @@ interface CastData {
   content: string;
 }
 
+interface MarkdownData {
+  fileName: string;
+  markdown: string;
+}
+
 export default function Home() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [casts, setCasts] = useState<CastData[]>([]);
+  const [markdowns, setMarkdowns] = useState<MarkdownData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'files' | 'logs' | 'casts'>('files');
+  const [viewMode, setViewMode] = useState<'files' | 'logs' | 'casts' | 'markdown'>('files');
 
   useEffect(() => {
     fetchFiles();
@@ -139,6 +149,43 @@ export default function Home() {
     }
   };
 
+  const handleConvertToMarkdown = async () => {
+    if (selectedFiles.length === 0) {
+      setError('Please select at least one cast file');
+      return;
+    }
+
+    const castFiles = selectedFiles.filter(f => f.endsWith('.cast'));
+
+    if (castFiles.length === 0) {
+      setError('Please select at least one .cast file to convert');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/cast-to-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: castFiles }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to convert cast files to markdown');
+      }
+
+      const data = await response.json();
+      setMarkdowns(data.markdowns || []);
+      setViewMode('markdown');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getLevelColor = (level: string): string => {
     switch (level.toUpperCase()) {
       case 'ERROR':
@@ -219,6 +266,17 @@ export default function Home() {
                   }`}
                 >
                   Display Selected ({selectedFiles.length})
+                </button>
+                <button
+                  onClick={handleConvertToMarkdown}
+                  disabled={selectedFiles.filter(f => f.endsWith('.cast')).length === 0}
+                  className={`px-6 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
+                    selectedFiles.filter(f => f.endsWith('.cast')).length === 0
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-500 hover:bg-green-600'
+                  }`}
+                >
+                  Convert to Markdown ({selectedFiles.filter(f => f.endsWith('.cast')).length})
                 </button>
               </div>
             </div>
@@ -320,6 +378,18 @@ export default function Home() {
                 View Casts ({casts.length})
               </button>
             )}
+            {markdowns.length > 0 && (
+              <button
+                onClick={() => setViewMode('markdown')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  viewMode === 'markdown'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                View Markdown ({markdowns.length})
+              </button>
+            )}
           </div>
         )}
 
@@ -417,6 +487,19 @@ export default function Home() {
                   fileName={cast.fileName}
                 />
               </div>
+            ))}
+          </div>
+        )}
+
+        {/* Markdown View */}
+        {viewMode === 'markdown' && markdowns.length > 0 && (
+          <div className="space-y-6">
+            {markdowns.map((markdown, index) => (
+              <MarkdownViewer
+                key={index}
+                fileName={markdown.fileName}
+                markdown={markdown.markdown}
+              />
             ))}
           </div>
         )}
